@@ -1,0 +1,94 @@
+# Apache/MariaDB ansible for Fiskaly
+# ansible-playbook -i inventory/mixed main.yml
+# handle firewall: false
+# handle restart after update: false
+# Used debian purposedly (ansible_os_family rather then ansible_distribution)
+# checked with ansible-lint
+  # latest dnf configured to be skipped by ansible-lint
+
+
+---
+- name: Fiskaly challenge ansible playbook
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Install and configure Apache on Ubuntu servers
+      when: ansible_os_family == "Debian"
+      block:
+        - name: Update apt cache
+          ansible.builtin.apt:
+            update_cache: true
+            cache_valid_time: 3600
+
+        - name: Upgrade all packages via apt
+          ansible.builtin.apt:
+            upgrade: dist
+            autoremove: true
+            autoclean: true
+
+        - name: Install apache server
+          ansible.builtin.apt:
+            name: apache2
+            state: present
+
+        - name: Create Hello World page
+          ansible.builtin.copy:
+            dest: /var/www/html/index.html
+            content: |
+              <!DOCTYPE html>
+              <html>
+              <head>
+                  <title>Hello World</title>
+                  <style>
+                      body {
+                          display: flex;
+                          justify-content: center;
+                          align-items: center;
+                          height: 100vh;
+                          margin: 0;
+                          font-family: Arial, sans-serif;
+                          font-size: 2em;
+                      }
+                  </style>
+              </head>
+              <body>
+                  <div>Hello World</div>
+              </body>
+              </html>
+            mode: '0644'
+          notify: Restart apache2 # fire the handler on the end
+
+        - name: Make Apache started and enabled
+          ansible.builtin.service:
+            name: apache2
+            state: started
+            enabled: true
+
+    - name: Install MariaDB on RedHat servers
+      when: ansible_os_family == "RedHat"
+      block:
+        - name: Update all packages via dnf
+          ansible.builtin.dnf:
+            name: "*"
+            state: latest  # noqa package-latest
+            update_cache: true
+
+        - name: Install MariaDB server
+          ansible.builtin.dnf:
+            name: mariadb-server
+            state: present
+            update_cache: false
+
+        - name: Make MariaDB started and enabled
+          ansible.builtin.service:
+            name: mariadb
+            state: started
+            enabled: true
+
+# Handlers
+  handlers:
+    - name: Restart Apache2
+      ansible.builtin.service:
+        name: apache2
+        state: restarted

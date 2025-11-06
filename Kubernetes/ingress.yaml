@@ -1,0 +1,25 @@
+# Ingress - nginx
+# Why not sidecar? Because we will have 2-4 nginx instances doing exactly the same thing, 
+#   while there is nginx load balancer available in kube
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello-world-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  
+  rules:
+  - host: hello-world.local # It's always DNS
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: hello-world-service
+            port:
+              number: 8080
+
